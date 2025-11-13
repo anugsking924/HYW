@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>文章发布平台 - 带用户登录和审核功能</title>
+    <title>文章发布平台 - 带审核功能</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
@@ -73,9 +73,32 @@
             align-items: center;
         }
         
-        .user-info span {
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: var(--primary-color);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        
+        .user-details {
+            display: flex;
+            flex-direction: column;
             margin-right: 15px;
-            color: var(--dark-color);
+        }
+        
+        .username {
+            font-weight: 600;
+        }
+        
+        .user-role {
+            font-size: 12px;
+            color: #666;
         }
         
         nav ul {
@@ -169,6 +192,7 @@
             height: 180px;
             background-size: cover;
             background-position: center;
+            background-color: #f0f0f0;
         }
         
         .article-content {
@@ -195,12 +219,19 @@
             justify-content: space-between;
             font-size: 14px;
             color: #888;
+            margin-bottom: 10px;
         }
         
         .article-actions {
             display: flex;
             gap: 10px;
             margin-top: 15px;
+        }
+        
+        .admin-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
         }
         
         .status-badge {
@@ -469,33 +500,19 @@
             color: #ddd;
         }
         
-        /* 审核面板样式 */
-        .admin-panel {
-            background: white;
-            border-radius: var(--border-radius);
+        /* 加载状态 */
+        .loading {
+            text-align: center;
             padding: 30px;
-            box-shadow: var(--shadow);
-            margin-bottom: 30px;
+            color: #666;
         }
         
-        .admin-actions {
-            display: flex;
-            gap: 10px;
-            margin-top: 10px;
-        }
-        
-        /* 用户信息样式 */
-        .user-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background-color: var(--primary-color);
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            margin-right: 10px;
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: var(--border-radius);
+            margin: 20px 0;
         }
         
         /* 欢迎页面样式 */
@@ -552,7 +569,10 @@
                 <a href="#" class="logo" onclick="showPage('home')"><i class="fas fa-newspaper"></i>文章发布平台</a>
                 <div class="user-info" id="user-info" style="display: none;">
                     <div class="user-avatar" id="user-avatar">U</div>
-                    <span id="username-display">用户名</span>
+                    <div class="user-details">
+                        <span class="username" id="username-display">用户名</span>
+                        <span class="user-role" id="user-role">用户</span>
+                    </div>
                     <a href="#" class="btn btn-sm" onclick="logout()">退出</a>
                 </div>
                 <nav id="nav-menu">
@@ -574,8 +594,8 @@
             <!-- 首页/欢迎页面 -->
             <div id="home-page" class="page active">
                 <div class="welcome-section" id="welcome-section">
-                    <h1>欢迎来到文章发布平台</h1>
-                    <p>在这里，您可以发布和分享您的知识与见解，与其他用户交流思想，共同构建知识社区。</p>
+                    <h1>欢迎来到要学一班文章发布平台</h1>
+                    <p>在这里，您可以发布和分享您的知识与见解，与他人交流思想，共同构建知识社区。</p>
                     <a href="#" class="btn" onclick="showPage('login')" id="get-started-btn">立即开始</a>
                     
                     <div class="features">
@@ -619,8 +639,8 @@
                 <div class="auth-form">
                     <form id="login-form">
                         <div class="form-group">
-                            <label for="login-username">用户名</label>
-                            <input type="text" id="login-username" class="form-control" required>
+                            <label for="login-email">电子邮箱</label>
+                            <input type="email" id="login-email" class="form-control" required>
                         </div>
                         
                         <div class="form-group">
@@ -758,7 +778,7 @@
                     <a href="#" onclick="showPage('my-articles')">我的文章</a>
                     <a href="#" onclick="showPage('admin')">审核中心</a>
                 </div>
-                <p class="copyright">© 2023 文章发布平台 版权所有</p>
+                <p class="copyright">© 2025 文章发布平台 版权所有</p>
             </div>
         </div>
     </footer>
@@ -794,120 +814,70 @@
         </div>
     </div>
 
+    <!-- 引入Supabase客户端 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
     <script>
-        // 用户数据和文章数据
-        const sampleUsers = [
-            {
-                id: 1,
-                username: "admin",
-                email: "admin@example.com",
-                password: "admin123",
-                role: "admin", // admin, user
-                registerDate: "2023-01-01"
-            },
-            {
-                id: 2,
-                username: "user1",
-                email: "user1@example.com",
-                password: "user123",
-                role: "user",
-                registerDate: "2023-05-15"
+        // 初始化Supabase客户端
+        const SUPABASE_URL = 'https://gkchlztlycjigcmydegx.supabase.co'; // 替换为您的Supabase项目URL
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdrY2hsenRseWNqaWdjbXlkZWd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMwNDEwMTksImV4cCI6MjA3ODYxNzAxOX0.xrr9Teziae-PfX4cyhgAENY_NDDG-_DPdXwRICX4fu0'; // 替换为您的Supabase匿名密钥
+        
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        // 应用状态
+        let currentUser = null;
+        let currentPage = 'home';
+        
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化认证状态
+            checkAuthState();
+            
+            // 设置表单事件监听
+            setupFormHandlers();
+            
+            // 设置标签页事件监听
+            setupTabHandlers();
+            
+            // 初始页面加载
+            showPage('home');
+        });
+        
+        // 检查认证状态
+        async function checkAuthState() {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                await fetchUserProfile(session.user.id);
             }
-        ];
-
-        const sampleArticles = [
-            {
-                id: 1,
-                title: "如何写出优秀的科技文章",
-                excerpt: "本文介绍了撰写高质量科技文章的关键要素和技巧，帮助您更好地传达技术观点。",
-                content: "<p>在信息爆炸的时代，撰写优秀的科技文章变得越来越重要。一篇好的科技文章不仅需要准确的技术内容，还需要清晰的表达和吸引人的叙述。</p><p>首先，确定您的目标读者是谁。针对不同的读者群体，您需要使用不同的语言和技术深度。</p><p>其次，结构要清晰。一个好的科技文章应该有引人入胜的开头、逻辑严谨的主体和有力的结尾。</p><p>最后，不要忘记添加实例和代码片段。这可以帮助读者更好地理解您要表达的技术概念。</p>",
-                author: "user1",
-                authorId: 2,
-                publishDate: "2023-10-15",
-                image: "https://images.unsplash.com/photo-1555949963-ff9fe0c870eb?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80",
-                status: "approved" // pending, approved, rejected
-            },
-            {
-                id: 2,
-                title: "前端开发的最新趋势",
-                excerpt: "探索2023年前端开发领域的最新趋势和技术，包括WebAssembly、微前端等。",
-                content: "<p>前端开发领域日新月异，每年都有新的技术和趋势出现。了解这些趋势对于保持竞争力至关重要。</p><p>WebAssembly正在改变我们构建Web应用的方式，它允许在浏览器中运行高性能的编译语言代码。</p><p>微前端架构让大型前端应用更容易开发和维护，通过将应用拆分为更小的、独立的部分。</p><p>此外，Jamstack架构、服务器端渲染和渐进式Web应用等趋势也值得关注。</p>",
-                author: "user1",
-                authorId: 2,
-                publishDate: "2023-10-10",
-                image: "https://images.unsplash.com/photo-1555066931-4365d14bab8c?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80",
-                status: "approved"
-            },
-            {
-                id: 3,
-                title: "人工智能在医疗领域的应用",
-                excerpt: "深入探讨人工智能如何改变医疗行业，从诊断辅助到药物研发的各个方面。",
-                content: "<p>人工智能正在彻底改变医疗行业的方方面面。从辅助诊断到个性化治疗，AI技术为医疗带来了前所未有的可能性。</p><p>在医学影像分析方面，AI算法已经能够以接近甚至超过人类专家的准确度识别疾病迹象。</p><p>在药物研发领域，AI可以大大缩短新药开发周期，降低研发成本。</p><p>然而，AI在医疗领域的应用也面临着数据隐私、算法透明度和监管等挑战。</p>",
-                author: "admin",
-                authorId: 1,
-                publishDate: "2023-10-05",
-                image: "https://images.unsplash.com/photo-1559757148-5c350d0d3c56?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80",
-                status: "pending"
-            }
-        ];
-
-        // 从localStorage获取数据或使用示例数据
-        function getUsers() {
-            const storedUsers = localStorage.getItem('users');
-            if (storedUsers) {
-                return JSON.parse(storedUsers);
-            } else {
-                localStorage.setItem('users', JSON.stringify(sampleUsers));
-                return sampleUsers;
+            updateUIForAuth();
+            
+            // 监听认证状态变化
+            supabase.auth.onAuthStateChange(async (event, session) => {
+                if (event === 'SIGNED_IN' && session) {
+                    await fetchUserProfile(session.user.id);
+                    updateUIForAuth();
+                } else if (event === 'SIGNED_OUT') {
+                    currentUser = null;
+                    updateUIForAuth();
+                }
+            });
+        }
+        
+        // 获取用户资料
+        async function fetchUserProfile(userId) {
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', userId)
+                .single();
+                
+            if (!error && data) {
+                currentUser = data;
             }
         }
-
-        function getArticles() {
-            const storedArticles = localStorage.getItem('articles');
-            if (storedArticles) {
-                return JSON.parse(storedArticles);
-            } else {
-                localStorage.setItem('articles', JSON.stringify(sampleArticles));
-                return sampleArticles;
-            }
-        }
-
-        // 保存数据到localStorage
-        function saveUsers(users) {
-            localStorage.setItem('users', JSON.stringify(users));
-        }
-
-        function saveArticles(articles) {
-            localStorage.setItem('articles', JSON.stringify(articles));
-        }
-
-        // 获取当前登录用户
-        function getCurrentUser() {
-            return JSON.parse(localStorage.getItem('currentUser'));
-        }
-
-        function setCurrentUser(user) {
-            if (user) {
-                localStorage.setItem('currentUser', JSON.stringify(user));
-            } else {
-                localStorage.removeItem('currentUser');
-            }
-        }
-
-        // 检查用户是否登录
-        function isLoggedIn() {
-            return getCurrentUser() !== null;
-        }
-
-        // 检查用户是否为管理员
-        function isAdmin() {
-            const user = getCurrentUser();
-            return user && user.role === 'admin';
-        }
-
-        // 更新UI以反映登录状态
+        
+        // 更新UI以反映认证状态
         function updateUIForAuth() {
-            const user = getCurrentUser();
             const userInfo = document.getElementById('user-info');
             const loginLink = document.getElementById('login-link');
             const publishLink = document.getElementById('publish-link');
@@ -916,17 +886,19 @@
             const welcomeSection = document.getElementById('welcome-section');
             const articlesTitle = document.getElementById('articles-title');
             const getStartedBtn = document.getElementById('get-started-btn');
-
-            if (user) {
+            
+            if (currentUser) {
                 // 用户已登录
                 userInfo.style.display = 'flex';
-                document.getElementById('username-display').textContent = user.username;
-                document.getElementById('user-avatar').textContent = user.username.charAt(0).toUpperCase();
+                document.getElementById('username-display').textContent = currentUser.username;
+                document.getElementById('user-avatar').textContent = currentUser.username.charAt(0).toUpperCase();
+                document.getElementById('user-role').textContent = currentUser.role === 'admin' ? '管理员' : '用户';
+                
                 loginLink.style.display = 'none';
                 publishLink.style.display = 'block';
                 myArticlesLink.style.display = 'block';
                 
-                if (isAdmin()) {
+                if (currentUser.role === 'admin') {
                     adminLink.style.display = 'block';
                 } else {
                     adminLink.style.display = 'none';
@@ -956,18 +928,18 @@
                 document.getElementById('articles-container').innerHTML = '';
             }
         }
-
+        
         // 页面导航
         function showPage(pageName) {
             // 检查是否需要登录
-            if ((pageName === 'publish' || pageName === 'my-articles' || pageName === 'admin') && !isLoggedIn()) {
+            if ((pageName === 'publish' || pageName === 'my-articles' || pageName === 'admin') && !currentUser) {
                 showPage('login');
                 alert('请先登录！');
                 return;
             }
             
             // 检查管理员权限
-            if (pageName === 'admin' && !isAdmin()) {
+            if (pageName === 'admin' && currentUser.role !== 'admin') {
                 showPage('home');
                 alert('您没有管理员权限！');
                 return;
@@ -980,6 +952,7 @@
             
             // 显示目标页面
             document.getElementById(`${pageName}-page`).style.display = 'block';
+            currentPage = pageName;
             
             // 更新导航链接状态
             document.querySelectorAll('.nav-link').forEach(link => {
@@ -989,222 +962,42 @@
             
             // 根据页面加载内容
             if (pageName === 'home') {
-                if (isLoggedIn()) {
+                if (currentUser) {
                     renderArticles();
                 }
             } else if (pageName === 'my-articles') {
                 renderMyArticles('all');
-                setupMyArticlesTabs();
             } else if (pageName === 'admin') {
                 renderAdminArticles('pending');
-                setupAdminTabs();
             }
         }
-
-        // 渲染文章列表（首页）
-        function renderArticles() {
-            const articlesContainer = document.getElementById('articles-container');
-            const emptyState = document.getElementById('empty-state');
-            const articles = getArticles().filter(article => article.status === 'approved');
-            
-            if (articles.length === 0) {
-                articlesContainer.style.display = 'none';
-                emptyState.style.display = 'block';
-                return;
-            }
-            
-            articlesContainer.style.display = 'grid';
-            emptyState.style.display = 'none';
-            
-            articlesContainer.innerHTML = articles.map(article => `
-                <div class="article-card">
-                    <div class="article-image" style="background-image: url('${article.image}')"></div>
-                    <div class="article-content">
-                        <h3 class="article-title">${article.title}</h3>
-                        <p class="article-excerpt">${article.excerpt}</p>
-                        <div class="article-meta">
-                            <span>作者: ${article.author}</span>
-                            <span>${article.publishDate}</span>
-                        </div>
-                        <a href="#" class="btn btn-block" onclick="viewArticle(${article.id})">阅读全文</a>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        // 渲染我的文章
-        function renderMyArticles(filter = 'all') {
-            const container = document.getElementById('my-articles-container');
-            const emptyState = document.getElementById('my-articles-empty');
-            const currentUser = getCurrentUser();
-            let articles = getArticles().filter(article => article.authorId === currentUser.id);
-            
-            if (filter !== 'all') {
-                articles = articles.filter(article => article.status === filter);
-            }
-            
-            if (articles.length === 0) {
-                container.style.display = 'none';
-                emptyState.style.display = 'block';
-                return;
-            }
-            
-            container.style.display = 'grid';
-            emptyState.style.display = 'none';
-            
-            container.innerHTML = articles.map(article => `
-                <div class="article-card">
-                    <div class="article-image" style="background-image: url('${article.image}')"></div>
-                    <div class="article-content">
-                        <h3 class="article-title">${article.title}</h3>
-                        <p class="article-excerpt">${article.excerpt}</p>
-                        <div class="article-meta">
-                            <span>作者: ${article.author}</span>
-                            <span>${article.publishDate}</span>
-                        </div>
-                        <span class="status-badge status-${article.status}">
-                            ${article.status === 'pending' ? '待审核' : 
-                              article.status === 'approved' ? '已发布' : '未通过'}
-                        </span>
-                        <div class="article-actions">
-                            <a href="#" class="btn btn-sm" onclick="viewArticle(${article.id})">查看</a>
-                            <a href="#" class="btn btn-warning btn-sm" onclick="editArticle(${article.id})">编辑</a>
-                            <a href="#" class="btn btn-danger btn-sm" onclick="confirmDelete(${article.id})">删除</a>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        // 渲染管理员文章列表
-        function renderAdminArticles(filter = 'pending') {
-            const container = document.getElementById('admin-articles-container');
-            const emptyState = document.getElementById('admin-empty');
-            const articles = getArticles().filter(article => article.status === filter);
-            
-            if (articles.length === 0) {
-                container.style.display = 'none';
-                emptyState.style.display = 'block';
-                return;
-            }
-            
-            container.style.display = 'grid';
-            emptyState.style.display = 'none';
-            
-            container.innerHTML = articles.map(article => `
-                <div class="article-card">
-                    <div class="article-image" style="background-image: url('${article.image}')"></div>
-                    <div class="article-content">
-                        <h3 class="article-title">${article.title}</h3>
-                        <p class="article-excerpt">${article.excerpt}</p>
-                        <div class="article-meta">
-                            <span>作者: ${article.author}</span>
-                            <span>${article.publishDate}</span>
-                        </div>
-                        <span class="status-badge status-${article.status}">
-                            ${article.status === 'pending' ? '待审核' : 
-                              article.status === 'approved' ? '已发布' : '未通过'}
-                        </span>
-                        <div class="admin-actions">
-                            <a href="#" class="btn btn-sm" onclick="viewArticle(${article.id})">查看详情</a>
-                            ${filter === 'pending' ? `
-                                <a href="#" class="btn btn-success btn-sm" onclick="reviewArticle(${article.id}, 'approve')">通过</a>
-                                <a href="#" class="btn btn-danger btn-sm" onclick="reviewArticle(${article.id}, 'reject')">拒绝</a>
-                            ` : ''}
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        // 设置我的文章页标签
-        function setupMyArticlesTabs() {
-            document.querySelectorAll('#my-articles-page .tab').forEach(tab => {
-                tab.addEventListener('click', function() {
-                    // 更新标签状态
-                    document.querySelectorAll('#my-articles-page .tab').forEach(t => {
-                        t.classList.remove('active');
+        
+        // 设置表单事件处理器
+        function setupFormHandlers() {
+            // 登录表单
+            document.getElementById('login-form').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const email = document.getElementById('login-email').value;
+                const password = document.getElementById('login-password').value;
+                
+                try {
+                    const { data, error } = await supabase.auth.signInWithPassword({
+                        email,
+                        password
                     });
-                    this.classList.add('active');
                     
-                    // 渲染对应文章
-                    renderMyArticles(this.getAttribute('data-tab'));
-                });
-            });
-        }
-
-        // 设置管理员页标签
-        function setupAdminTabs() {
-            document.querySelectorAll('#admin-page .tab').forEach(tab => {
-                tab.addEventListener('click', function() {
-                    // 更新标签状态
-                    document.querySelectorAll('#admin-page .tab').forEach(t => {
-                        t.classList.remove('active');
-                    });
-                    this.classList.add('active');
+                    if (error) throw error;
                     
-                    // 渲染对应文章
-                    renderAdminArticles(this.getAttribute('data-tab'));
-                });
-            });
-        }
-
-        // 查看文章详情
-        function viewArticle(id) {
-            const articles = getArticles();
-            const article = articles.find(a => a.id === id);
-            
-            if (!article) {
-                alert('文章未找到！');
-                return;
-            }
-            
-            // 创建文章详情页HTML
-            const articleHTML = `
-                <div class="article-detail">
-                    <div class="article-header">
-                        <h1 class="article-detail-title">${article.title}</h1>
-                        <div class="article-detail-meta">
-                            <span>作者: ${article.author}</span>
-                            <span>发布日期: ${article.publishDate}</span>
-                            <span class="status-badge status-${article.status}">
-                                ${article.status === 'pending' ? '待审核' : 
-                                  article.status === 'approved' ? '已发布' : '未通过'}
-                            </span>
-                        </div>
-                    </div>
-                    <div class="article-body">
-                        ${article.content}
-                    </div>
-                    <div style="margin-top: 20px;">
-                        <a href="#" class="btn" onclick="showPage('home')">返回首页</a>
-                    </div>
-                </div>
-            `;
-            
-            // 临时替换首页内容为文章详情
-            const homePage = document.getElementById('home-page');
-            const originalContent = homePage.innerHTML;
-            homePage.innerHTML = articleHTML;
-            
-            // 显示首页（现在是文章详情）
-            showPage('home');
-            
-            // 添加返回按钮的事件监听
-            setTimeout(() => {
-                document.querySelector('#home-page .btn').addEventListener('click', function(e) {
-                    e.preventDefault();
-                    homePage.innerHTML = originalContent;
+                    alert('登录成功！');
                     showPage('home');
-                });
-            }, 100);
-        }
-
-        // 用户注册
-        function setupRegisterForm() {
-            const form = document.getElementById('register-form');
+                } catch (error) {
+                    alert('登录失败: ' + error.message);
+                }
+            });
             
-            form.addEventListener('submit', function(e) {
+            // 注册表单
+            document.getElementById('register-form').addEventListener('submit', async function(e) {
                 e.preventDefault();
                 
                 const username = document.getElementById('register-username').value;
@@ -1212,105 +1005,47 @@
                 const password = document.getElementById('register-password').value;
                 const passwordConfirm = document.getElementById('register-password-confirm').value;
                 
-                if (!username || !email || !password) {
-                    alert('请填写所有必填字段！');
-                    return;
-                }
-                
                 if (password !== passwordConfirm) {
                     alert('两次输入的密码不一致！');
                     return;
                 }
                 
-                if (password.length < 6) {
-                    alert('密码长度至少为6位！');
-                    return;
+                try {
+                    // 1. 创建用户账户
+                    const { data: authData, error: authError } = await supabase.auth.signUp({
+                        email,
+                        password
+                    });
+                    
+                    if (authError) throw authError;
+                    
+                    // 2. 创建用户资料
+                    const { data: profileData, error: profileError } = await supabase
+                        .from('profiles')
+                        .insert([
+                            {
+                                id: authData.user.id,
+                                username,
+                                email,
+                                role: 'user'
+                            }
+                        ])
+                        .select()
+                        .single();
+                    
+                    if (profileError) throw profileError;
+                    
+                    alert('注册成功！请检查您的邮箱以确认账户。');
+                    showPage('login');
+                } catch (error) {
+                    alert('注册失败: ' + error.message);
                 }
-                
-                const users = getUsers();
-                
-                // 检查用户名是否已存在
-                if (users.find(user => user.username === username)) {
-                    alert('用户名已存在，请选择其他用户名！');
-                    return;
-                }
-                
-                // 检查邮箱是否已存在
-                if (users.find(user => user.email === email)) {
-                    alert('邮箱已被注册，请使用其他邮箱！');
-                    return;
-                }
-                
-                // 创建新用户
-                const newUser = {
-                    id: users.length > 0 ? Math.max(...users.map(u => u.id)) + 1 : 1,
-                    username,
-                    email,
-                    password, // 实际应用中应对密码进行加密
-                    role: "user",
-                    registerDate: new Date().toISOString().split('T')[0]
-                };
-                
-                users.push(newUser);
-                saveUsers(users);
-                
-                // 自动登录
-                setCurrentUser(newUser);
-                updateUIForAuth();
-                
-                alert('注册成功！');
-                showPage('home');
             });
-        }
-
-        // 用户登录
-        function setupLoginForm() {
-            const form = document.getElementById('login-form');
             
-            form.addEventListener('submit', function(e) {
+            // 发布文章表单
+            document.getElementById('publish-form').addEventListener('submit', async function(e) {
                 e.preventDefault();
                 
-                const username = document.getElementById('login-username').value;
-                const password = document.getElementById('login-password').value;
-                
-                if (!username || !password) {
-                    alert('请填写用户名和密码！');
-                    return;
-                }
-                
-                const users = getUsers();
-                const user = users.find(u => u.username === username && u.password === password);
-                
-                if (!user) {
-                    alert('用户名或密码错误！');
-                    return;
-                }
-                
-                // 登录成功
-                setCurrentUser(user);
-                updateUIForAuth();
-                
-                alert('登录成功！');
-                showPage('home');
-            });
-        }
-
-        // 用户退出
-        function logout() {
-            setCurrentUser(null);
-            updateUIForAuth();
-            showPage('home');
-            alert('已成功退出！');
-        }
-
-        // 发布文章
-        function setupPublishForm() {
-            const form = document.getElementById('publish-form');
-            
-            form.addEventListener('submit', function(e) {
-                e.preventDefault();
-                
-                const currentUser = getCurrentUser();
                 if (!currentUser) {
                     alert('请先登录！');
                     showPage('login');
@@ -1320,106 +1055,375 @@
                 const title = document.getElementById('title').value;
                 const excerpt = document.getElementById('excerpt').value;
                 const content = document.getElementById('content').value;
-                const image = document.getElementById('image').value || 'https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80';
+                const image = document.getElementById('image').value;
                 
                 if (!title || !content) {
                     alert('标题和内容不能为空！');
                     return;
                 }
                 
-                const articles = getArticles();
-                const newArticle = {
-                    id: articles.length > 0 ? Math.max(...articles.map(a => a.id)) + 1 : 1,
-                    title,
-                    excerpt,
-                    content: content.replace(/\n/g, '<br>'),
-                    author: currentUser.username,
-                    authorId: currentUser.id,
-                    publishDate: new Date().toISOString().split('T')[0],
-                    image,
-                    status: "pending" // 新文章默认待审核
-                };
-                
-                articles.unshift(newArticle);
-                saveArticles(articles);
-                
-                alert('文章发布成功，等待审核！');
-                form.reset();
-                showPage('my-articles');
+                try {
+                    const { data, error } = await supabase
+                        .from('articles')
+                        .insert([
+                            {
+                                title,
+                                excerpt,
+                                content,
+                                cover_image: image || null,
+                                author_id: currentUser.id,
+                                status: 'pending'
+                            }
+                        ])
+                        .select()
+                        .single();
+                    
+                    if (error) throw error;
+                    
+                    alert('文章发布成功，等待审核！');
+                    e.target.reset();
+                    showPage('my-articles');
+                } catch (error) {
+                    alert('发布失败: ' + error.message);
+                }
             });
         }
-
-        // 编辑文章
-        function editArticle(id) {
-            const articles = getArticles();
-            const article = articles.find(a => a.id === id);
-            const currentUser = getCurrentUser();
+        
+        // 设置标签页事件处理器
+        function setupTabHandlers() {
+            // 我的文章页面标签
+            document.querySelectorAll('#my-articles-page .tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    document.querySelectorAll('#my-articles-page .tab').forEach(t => {
+                        t.classList.remove('active');
+                    });
+                    this.classList.add('active');
+                    
+                    renderMyArticles(this.getAttribute('data-tab'));
+                });
+            });
             
-            if (!article) {
-                alert('文章未找到！');
-                return;
-            }
+            // 管理员页面标签
+            document.querySelectorAll('#admin-page .tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    document.querySelectorAll('#admin-page .tab').forEach(t => {
+                        t.classList.remove('active');
+                    });
+                    this.classList.add('active');
+                    
+                    renderAdminArticles(this.getAttribute('data-tab'));
+                });
+            });
+        }
+        
+        // 渲染文章列表（首页）
+        async function renderArticles() {
+            const articlesContainer = document.getElementById('articles-container');
+            const emptyState = document.getElementById('empty-state');
             
-            // 检查权限
-            if (article.authorId !== currentUser.id && currentUser.role !== 'admin') {
-                alert('您没有权限编辑此文章！');
-                return;
-            }
+            articlesContainer.innerHTML = '<div class="loading">加载中...</div>';
             
-            // 填充表单
-            document.getElementById('title').value = article.title;
-            document.getElementById('excerpt').value = article.excerpt;
-            document.getElementById('content').value = article.content.replace(/<br>/g, '\n');
-            document.getElementById('image').value = article.image;
-            
-            // 修改发布按钮文本
-            const submitBtn = document.querySelector('#publish-form button');
-            submitBtn.textContent = '更新文章';
-            
-            // 临时修改表单提交事件
-            const form = document.getElementById('publish-form');
-            const originalSubmit = form.onsubmit;
-            
-            form.onsubmit = function(e) {
-                e.preventDefault();
+            try {
+                const { data: articles, error } = await supabase
+                    .from('articles')
+                    .select(`
+                        *,
+                        profiles:author_id (username)
+                    `)
+                    .eq('status', 'approved')
+                    .order('created_at', { ascending: false });
                 
-                const title = document.getElementById('title').value;
-                const excerpt = document.getElementById('excerpt').value;
-                const content = document.getElementById('content').value;
-                const image = document.getElementById('image').value || 'https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80';
+                if (error) throw error;
                 
-                if (!title || !content) {
-                    alert('标题和内容不能为空！');
+                if (articles.length === 0) {
+                    articlesContainer.style.display = 'none';
+                    emptyState.style.display = 'block';
                     return;
                 }
                 
-                // 更新文章
-                const articleIndex = articles.findIndex(a => a.id === id);
-                if (articleIndex !== -1) {
-                    articles[articleIndex] = {
-                        ...articles[articleIndex],
-                        title,
-                        excerpt,
-                        content: content.replace(/\n/g, '<br>'),
-                        image,
-                        status: "pending" // 编辑后重新进入审核状态
-                    };
-                    
-                    saveArticles(articles);
-                    alert('文章更新成功，等待重新审核！');
-                    
-                    // 恢复原始表单行为
-                    form.onsubmit = originalSubmit;
-                    submitBtn.textContent = '发布文章';
-                    form.reset();
-                    
-                    showPage('my-articles');
-                }
-            };
-            
-            showPage('publish');
+                articlesContainer.style.display = 'grid';
+                emptyState.style.display = 'none';
+                
+                articlesContainer.innerHTML = articles.map(article => `
+                    <div class="article-card">
+                        <div class="article-image" style="background-image: url('${article.cover_image || 'https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80'}')"></div>
+                        <div class="article-content">
+                            <h3 class="article-title">${article.title}</h3>
+                            <p class="article-excerpt">${article.excerpt || article.content.substring(0, 150)}...</p>
+                            <div class="article-meta">
+                                <span>作者: ${article.profiles.username}</span>
+                                <span>${new Date(article.created_at).toLocaleDateString()}</span>
+                            </div>
+                            <a href="#" class="btn btn-block" onclick="viewArticle('${article.id}')">阅读全文</a>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                articlesContainer.innerHTML = '<div class="error-message">加载失败: ' + error.message + '</div>';
+            }
         }
-
+        
+        // 渲染我的文章
+        async function renderMyArticles(filter = 'all') {
+            const container = document.getElementById('my-articles-container');
+            const emptyState = document.getElementById('my-articles-empty');
+            
+            container.innerHTML = '<div class="loading">加载中...</div>';
+            
+            try {
+                let query = supabase
+                    .from('articles')
+                    .select('*')
+                    .eq('author_id', currentUser.id)
+                    .order('created_at', { ascending: false });
+                
+                if (filter !== 'all') {
+                    query = query.eq('status', filter);
+                }
+                
+                const { data: articles, error } = await query;
+                
+                if (error) throw error;
+                
+                if (articles.length === 0) {
+                    container.style.display = 'none';
+                    emptyState.style.display = 'block';
+                    return;
+                }
+                
+                container.style.display = 'grid';
+                emptyState.style.display = 'none';
+                
+                container.innerHTML = articles.map(article => `
+                    <div class="article-card">
+                        <div class="article-image" style="background-image: url('${article.cover_image || 'https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80'}')"></div>
+                        <div class="article-content">
+                            <h3 class="article-title">${article.title}</h3>
+                            <p class="article-excerpt">${article.excerpt || article.content.substring(0, 150)}...</p>
+                            <div class="article-meta">
+                                <span>${new Date(article.created_at).toLocaleDateString()}</span>
+                                <span class="status-badge status-${article.status}">
+                                    ${article.status === 'pending' ? '待审核' : 
+                                      article.status === 'approved' ? '已发布' : '未通过'}
+                                </span>
+                            </div>
+                            <div class="article-actions">
+                                <a href="#" class="btn btn-sm" onclick="viewArticle('${article.id}')">查看</a>
+                                <a href="#" class="btn btn-warning btn-sm" onclick="editArticle('${article.id}')">编辑</a>
+                                <a href="#" class="btn btn-danger btn-sm" onclick="confirmDelete('${article.id}')">删除</a>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                container.innerHTML = '<div class="error-message">加载失败: ' + error.message + '</div>';
+            }
+        }
+        
+        // 渲染管理员文章列表
+        async function renderAdminArticles(filter = 'pending') {
+            const container = document.getElementById('admin-articles-container');
+            const emptyState = document.getElementById('admin-empty');
+            
+            container.innerHTML = '<div class="loading">加载中...</div>';
+            
+            try {
+                const { data: articles, error } = await supabase
+                    .from('articles')
+                    .select(`
+                        *,
+                        profiles:author_id (username)
+                    `)
+                    .eq('status', filter)
+                    .order('created_at', { ascending: false });
+                
+                if (error) throw error;
+                
+                if (articles.length === 0) {
+                    container.style.display = 'none';
+                    emptyState.style.display = 'block';
+                    return;
+                }
+                
+                container.style.display = 'grid';
+                emptyState.style.display = 'none';
+                
+                container.innerHTML = articles.map(article => `
+                    <div class="article-card">
+                        <div class="article-image" style="background-image: url('${article.cover_image || 'https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80'}')"></div>
+                        <div class="article-content">
+                            <h3 class="article-title">${article.title}</h3>
+                            <p class="article-excerpt">${article.excerpt || article.content.substring(0, 150)}...</p>
+                            <div class="article-meta">
+                                <span>作者: ${article.profiles.username}</span>
+                                <span>${new Date(article.created_at).toLocaleDateString()}</span>
+                            </div>
+                            <span class="status-badge status-${article.status}">
+                                ${article.status === 'pending' ? '待审核' : 
+                                  article.status === 'approved' ? '已发布' : '未通过'}
+                            </span>
+                            <div class="admin-actions">
+                                <a href="#" class="btn btn-sm" onclick="viewArticle('${article.id}')">查看详情</a>
+                                ${filter === 'pending' ? `
+                                    <a href="#" class="btn btn-success btn-sm" onclick="reviewArticle('${article.id}', 'approve')">通过</a>
+                                    <a href="#" class="btn btn-danger btn-sm" onclick="reviewArticle('${article.id}', 'reject')">拒绝</a>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                container.innerHTML = '<div class="error-message">加载失败: ' + error.message + '</div>';
+            }
+        }
+        
+        // 查看文章详情
+        async function viewArticle(id) {
+            try {
+                const { data: article, error } = await supabase
+                    .from('articles')
+                    .select(`
+                        *,
+                        profiles:author_id (username)
+                    `)
+                    .eq('id', id)
+                    .single();
+                
+                if (error) throw error;
+                
+                if (!article) {
+                    alert('文章未找到！');
+                    return;
+                }
+                
+                // 创建文章详情页HTML
+                const articleHTML = `
+                    <div class="article-detail">
+                        <div class="article-header">
+                            <h1 class="article-detail-title">${article.title}</h1>
+                            <div class="article-detail-meta">
+                                <span>作者: ${article.profiles.username}</span>
+                                <span>发布日期: ${new Date(article.created_at).toLocaleDateString()}</span>
+                                <span class="status-badge status-${article.status}">
+                                    ${article.status === 'pending' ? '待审核' : 
+                                      article.status === 'approved' ? '已发布' : '未通过'}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="article-body">
+                            ${article.content.replace(/\n/g, '<br>')}
+                        </div>
+                        <div style="margin-top: 20px;">
+                            <a href="#" class="btn" onclick="showPage('home')">返回首页</a>
+                        </div>
+                    </div>
+                `;
+                
+                // 临时替换首页内容为文章详情
+                const homePage = document.getElementById('home-page');
+                const originalContent = homePage.innerHTML;
+                homePage.innerHTML = articleHTML;
+                
+                // 显示首页（现在是文章详情）
+                showPage('home');
+                
+                // 添加返回按钮的事件监听
+                setTimeout(() => {
+                    document.querySelector('#home-page .btn').addEventListener('click', function(e) {
+                        e.preventDefault();
+                        homePage.innerHTML = originalContent;
+                        showPage('home');
+                    });
+                }, 100);
+            } catch (error) {
+                alert('加载文章失败: ' + error.message);
+            }
+        }
+        
+        // 编辑文章
+        async function editArticle(id) {
+            try {
+                const { data: article, error } = await supabase
+                    .from('articles')
+                    .select('*')
+                    .eq('id', id)
+                    .single();
+                
+                if (error) throw error;
+                
+                if (!article) {
+                    alert('文章未找到！');
+                    return;
+                }
+                
+                // 检查权限
+                if (article.author_id !== currentUser.id) {
+                    alert('您没有权限编辑此文章！');
+                    return;
+                }
+                
+                // 填充表单
+                document.getElementById('title').value = article.title;
+                document.getElementById('excerpt').value = article.excerpt;
+                document.getElementById('content').value = article.content;
+                document.getElementById('image').value = article.cover_image || '';
+                
+                // 修改发布按钮文本
+                const submitBtn = document.querySelector('#publish-form button');
+                submitBtn.textContent = '更新文章';
+                
+                // 临时修改表单提交事件
+                const form = document.getElementById('publish-form');
+                const originalSubmit = form.onsubmit;
+                
+                form.onsubmit = async function(e) {
+                    e.preventDefault();
+                    
+                    const title = document.getElementById('title').value;
+                    const excerpt = document.getElementById('excerpt').value;
+                    const content = document.getElementById('content').value;
+                    const image = document.getElementById('image').value;
+                    
+                    if (!title || !content) {
+                        alert('标题和内容不能为空！');
+                        return;
+                    }
+                    
+                    try {
+                        const { data, error } = await supabase
+                            .from('articles')
+                            .update({
+                                title,
+                                excerpt,
+                                content,
+                                cover_image: image || null,
+                                status: 'pending' // 编辑后重新进入审核状态
+                            })
+                            .eq('id', id)
+                            .select()
+                            .single();
+                        
+                        if (error) throw error;
+                        
+                        alert('文章更新成功，等待重新审核！');
+                        
+                        // 恢复原始表单行为
+                        form.onsubmit = originalSubmit;
+                        submitBtn.textContent = '发布文章';
+                        form.reset();
+                        
+                        showPage('my-articles');
+                    } catch (error) {
+                        alert('更新失败: ' + error.message);
+                    }
+                };
+                
+                showPage('publish');
+            } catch (error) {
+                alert('加载文章失败: ' + error.message);
+            }
+        }
+        
         // 确认删除文章
         function confirmDelete(id) {
             const modal = document.getElementById('delete-modal');
@@ -1431,71 +1435,87 @@
                 closeModal('delete-modal');
             };
         }
-
+        
         // 删除文章
-        function deleteArticle(id) {
-            const articles = getArticles();
-            const article = articles.find(a => a.id === id);
-            const currentUser = getCurrentUser();
-            
-            // 检查权限
-            if (article.authorId !== currentUser.id && currentUser.role !== 'admin') {
-                alert('您没有权限删除此文章！');
-                return;
-            }
-            
-            const updatedArticles = articles.filter(article => article.id !== id);
-            saveArticles(updatedArticles);
-            
-            alert('文章已删除！');
-            
-            // 刷新当前页面
-            if (document.getElementById('my-articles-page').style.display !== 'none') {
-                renderMyArticles('all');
-            } else if (document.getElementById('admin-page').style.display !== 'none') {
-                renderAdminArticles('pending');
-            }
-        }
-
-        // 审核文章
-        function reviewArticle(id, action) {
-            const articles = getArticles();
-            const articleIndex = articles.findIndex(a => a.id === id);
-            
-            if (articleIndex !== -1) {
-                if (action === 'approve') {
-                    articles[articleIndex].status = 'approved';
-                    alert('文章已通过审核！');
-                } else if (action === 'reject') {
-                    articles[articleIndex].status = 'rejected';
-                    alert('文章已拒绝发布！');
+        async function deleteArticle(id) {
+            try {
+                // 验证权限
+                const { data: article, error: fetchError } = await supabase
+                    .from('articles')
+                    .select('author_id')
+                    .eq('id', id)
+                    .single();
+                
+                if (fetchError) throw fetchError;
+                
+                if (article.author_id !== currentUser.id && currentUser.role !== 'admin') {
+                    alert('您没有权限删除此文章！');
+                    return;
                 }
                 
-                saveArticles(articles);
-                renderAdminArticles('pending');
+                const { error } = await supabase
+                    .from('articles')
+                    .delete()
+                    .eq('id', id);
+                
+                if (error) throw error;
+                
+                alert('文章已删除！');
+                
+                // 刷新当前页面
+                if (currentPage === 'my-articles') {
+                    renderMyArticles('all');
+                } else if (currentPage === 'admin') {
+                    renderAdminArticles('pending');
+                }
+            } catch (error) {
+                alert('删除失败: ' + error.message);
             }
         }
-
+        
+        // 审核文章
+        async function reviewArticle(id, action) {
+            try {
+                if (currentUser.role !== 'admin') {
+                    alert('您没有管理员权限！');
+                    return;
+                }
+                
+                const status = action === 'approve' ? 'approved' : 'rejected';
+                
+                const { error } = await supabase
+                    .from('articles')
+                    .update({ status })
+                    .eq('id', id);
+                
+                if (error) throw error;
+                
+                alert(`文章已${action === 'approve' ? '通过' : '拒绝'}审核！`);
+                renderAdminArticles('pending');
+            } catch (error) {
+                alert('审核失败: ' + error.message);
+            }
+        }
+        
+        // 退出登录
+        async function logout() {
+            try {
+                const { error } = await supabase.auth.signOut();
+                if (error) throw error;
+                
+                currentUser = null;
+                updateUIForAuth();
+                showPage('home');
+                alert('已成功退出！');
+            } catch (error) {
+                alert('退出失败: ' + error.message);
+            }
+        }
+        
         // 关闭模态框
         function closeModal(modalId) {
             document.getElementById(modalId).style.display = 'none';
         }
-
-        // 页面加载完成后初始化
-        document.addEventListener('DOMContentLoaded', function() {
-            // 初始化表单
-            setupRegisterForm();
-            setupLoginForm();
-            setupPublishForm();
-            
-            // 更新UI以反映登录状态
-            updateUIForAuth();
-            
-            // 如果已登录，渲染首页文章
-            if (isLoggedIn()) {
-                renderArticles();
-            }
-        });
     </script>
 </body>
 </html>
