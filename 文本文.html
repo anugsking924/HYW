@@ -1,0 +1,1501 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文章发布平台 - 带用户登录和审核功能</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2980b9;
+            --accent-color: #e74c3c;
+            --success-color: #2ecc71;
+            --warning-color: #f39c12;
+            --light-color: #f8f9fa;
+            --dark-color: #343a40;
+            --text-color: #333;
+            --border-radius: 8px;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f7fa;
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        /* 头部样式 */
+        header {
+            background-color: white;
+            box-shadow: var(--shadow);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+        }
+        
+        .logo {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary-color);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+        }
+        
+        .logo i {
+            margin-right: 10px;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+        }
+        
+        .user-info span {
+            margin-right: 15px;
+            color: var(--dark-color);
+        }
+        
+        nav ul {
+            display: flex;
+            list-style: none;
+        }
+        
+        nav ul li {
+            margin-left: 20px;
+        }
+        
+        nav ul li a {
+            text-decoration: none;
+            color: var(--dark-color);
+            font-weight: 500;
+            transition: var(--transition);
+            padding: 8px 12px;
+            border-radius: var(--border-radius);
+        }
+        
+        nav ul li a:hover, 
+        nav ul li a.active {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        /* 主要内容区域 */
+        main {
+            padding: 40px 0;
+            min-height: calc(100vh - 200px);
+        }
+        
+        .page-title {
+            font-size: 32px;
+            margin-bottom: 30px;
+            text-align: center;
+            color: var(--dark-color);
+        }
+        
+        /* 标签页样式 */
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #ddd;
+            margin-bottom: 20px;
+        }
+        
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: var(--transition);
+        }
+        
+        .tab.active {
+            border-bottom-color: var(--primary-color);
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* 文章列表样式 */
+        .articles-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 30px;
+            margin-top: 30px;
+        }
+        
+        .article-card {
+            background: white;
+            border-radius: var(--border-radius);
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            transition: var(--transition);
+            position: relative;
+        }
+        
+        .article-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        .article-image {
+            height: 180px;
+            background-size: cover;
+            background-position: center;
+        }
+        
+        .article-content {
+            padding: 20px;
+        }
+        
+        .article-title {
+            font-size: 20px;
+            margin-bottom: 10px;
+            color: var(--dark-color);
+        }
+        
+        .article-excerpt {
+            color: #666;
+            margin-bottom: 15px;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        
+        .article-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            color: #888;
+        }
+        
+        .article-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .status-pending {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        
+        .status-approved {
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+        
+        .status-rejected {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        
+        /* 按钮样式 */
+        .btn {
+            display: inline-block;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: var(--border-radius);
+            font-size: 14px;
+            cursor: pointer;
+            transition: var(--transition);
+            font-weight: 500;
+            text-decoration: none;
+        }
+        
+        .btn:hover {
+            background: var(--secondary-color);
+        }
+        
+        .btn-success {
+            background: var(--success-color);
+        }
+        
+        .btn-success:hover {
+            background: #27ae60;
+        }
+        
+        .btn-danger {
+            background: var(--accent-color);
+        }
+        
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+        
+        .btn-warning {
+            background: var(--warning-color);
+        }
+        
+        .btn-warning:hover {
+            background: #e67e22;
+        }
+        
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+        
+        .btn-block {
+            display: block;
+            width: 100%;
+            text-align: center;
+        }
+        
+        /* 表单样式 */
+        .auth-form, .publish-form {
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 30px;
+            box-shadow: var(--shadow);
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        
+        .publish-form {
+            max-width: 800px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: var(--border-radius);
+            font-size: 16px;
+            transition: var(--transition);
+        }
+        
+        .form-control:focus {
+            border-color: var(--primary-color);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+        }
+        
+        textarea.form-control {
+            min-height: 150px;
+            resize: vertical;
+        }
+        
+        .form-footer {
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        /* 页脚样式 */
+        footer {
+            background: var(--dark-color);
+            color: white;
+            padding: 40px 0;
+            text-align: center;
+        }
+        
+        .footer-content {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        
+        .footer-links a {
+            color: #ccc;
+            margin: 0 15px;
+            text-decoration: none;
+            transition: var(--transition);
+        }
+        
+        .footer-links a:hover {
+            color: white;
+        }
+        
+        .copyright {
+            margin-top: 20px;
+            color: #aaa;
+            font-size: 14px;
+        }
+        
+        /* 模态框样式 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 30px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+        
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #999;
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .user-info {
+                margin-top: 15px;
+                flex-direction: column;
+            }
+            
+            nav ul {
+                margin-top: 15px;
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            
+            nav ul li {
+                margin: 5px;
+            }
+            
+            .articles-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .page-title {
+                font-size: 28px;
+            }
+            
+            .article-actions {
+                flex-direction: column;
+            }
+            
+            .footer-links {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+        
+        /* 空状态提示 */
+        .empty-state {
+            text-align: center;
+            padding: 50px 20px;
+            color: #888;
+        }
+        
+        .empty-state i {
+            font-size: 60px;
+            margin-bottom: 20px;
+            color: #ddd;
+        }
+        
+        /* 审核面板样式 */
+        .admin-panel {
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 30px;
+            box-shadow: var(--shadow);
+            margin-bottom: 30px;
+        }
+        
+        .admin-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        /* 用户信息样式 */
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: var(--primary-color);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        
+        /* 欢迎页面样式 */
+        .welcome-section {
+            text-align: center;
+            padding: 40px 0;
+        }
+        
+        .welcome-section h1 {
+            font-size: 36px;
+            margin-bottom: 20px;
+            color: var(--dark-color);
+        }
+        
+        .welcome-section p {
+            font-size: 18px;
+            max-width: 700px;
+            margin: 0 auto 30px;
+            color: #666;
+        }
+        
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+            margin-top: 50px;
+        }
+        
+        .feature {
+            background: white;
+            padding: 30px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            text-align: center;
+        }
+        
+        .feature i {
+            font-size: 40px;
+            color: var(--primary-color);
+            margin-bottom: 20px;
+        }
+        
+        .feature h3 {
+            margin-bottom: 15px;
+            color: var(--dark-color);
+        }
+    </style>
+</head>
+<body>
+    <!-- 头部导航 -->
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <a href="#" class="logo" onclick="showPage('home')"><i class="fas fa-newspaper"></i>文章发布平台</a>
+                <div class="user-info" id="user-info" style="display: none;">
+                    <div class="user-avatar" id="user-avatar">U</div>
+                    <span id="username-display">用户名</span>
+                    <a href="#" class="btn btn-sm" onclick="logout()">退出</a>
+                </div>
+                <nav id="nav-menu">
+                    <ul>
+                        <li><a href="#" class="nav-link active" onclick="showPage('home')">首页</a></li>
+                        <li><a href="#" class="nav-link" onclick="showPage('publish')" id="publish-link" style="display: none;">发布文章</a></li>
+                        <li><a href="#" class="nav-link" onclick="showPage('my-articles')" id="my-articles-link" style="display: none;">我的文章</a></li>
+                        <li><a href="#" class="nav-link" onclick="showPage('admin')" id="admin-link" style="display: none;">审核中心</a></li>
+                        <li><a href="#" class="nav-link" onclick="showPage('login')" id="login-link">登录/注册</a></li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主要内容区域 -->
+    <main>
+        <div class="container">
+            <!-- 首页/欢迎页面 -->
+            <div id="home-page" class="page active">
+                <div class="welcome-section" id="welcome-section">
+                    <h1>欢迎来到文章发布平台</h1>
+                    <p>在这里，您可以发布和分享您的知识与见解，与其他用户交流思想，共同构建知识社区。</p>
+                    <a href="#" class="btn" onclick="showPage('login')" id="get-started-btn">立即开始</a>
+                    
+                    <div class="features">
+                        <div class="feature">
+                            <i class="fas fa-edit"></i>
+                            <h3>发布文章</h3>
+                            <p>轻松发布您的文章，分享您的知识和见解</p>
+                        </div>
+                        <div class="feature">
+                            <i class="fas fa-users"></i>
+                            <h3>社区互动</h3>
+                            <p>与社区成员交流，获取反馈和建议</p>
+                        </div>
+                        <div class="feature">
+                            <i class="fas fa-shield-alt"></i>
+                            <h3>内容审核</h3>
+                            <p>严格的内容审核机制，确保内容质量</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <h1 class="page-title" id="articles-title" style="display: none;">最新文章</h1>
+                
+                <!-- 文章列表 -->
+                <div class="articles-grid" id="articles-container">
+                    <!-- 文章将通过JavaScript动态加载 -->
+                </div>
+                
+                <!-- 空状态提示 -->
+                <div class="empty-state" id="empty-state" style="display: none;">
+                    <i>📝</i>
+                    <h3>暂无文章</h3>
+                    <p>还没有人发布文章，<a href="#" onclick="showPage('publish')">成为第一个发布者</a>！</p>
+                </div>
+            </div>
+            
+            <!-- 登录页面 -->
+            <div id="login-page" class="page" style="display: none;">
+                <h1 class="page-title">用户登录</h1>
+                
+                <div class="auth-form">
+                    <form id="login-form">
+                        <div class="form-group">
+                            <label for="login-username">用户名</label>
+                            <input type="text" id="login-username" class="form-control" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="login-password">密码</label>
+                            <input type="password" id="login-password" class="form-control" required>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-block">登录</button>
+                        
+                        <div class="form-footer">
+                            <p>还没有账号？ <a href="#" onclick="showPage('register')">立即注册</a></p>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- 注册页面 -->
+            <div id="register-page" class="page" style="display: none;">
+                <h1 class="page-title">用户注册</h1>
+                
+                <div class="auth-form">
+                    <form id="register-form">
+                        <div class="form-group">
+                            <label for="register-username">用户名</label>
+                            <input type="text" id="register-username" class="form-control" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="register-email">电子邮箱</label>
+                            <input type="email" id="register-email" class="form-control" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="register-password">密码</label>
+                            <input type="password" id="register-password" class="form-control" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="register-password-confirm">确认密码</label>
+                            <input type="password" id="register-password-confirm" class="form-control" required>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-block">注册</button>
+                        
+                        <div class="form-footer">
+                            <p>已有账号？ <a href="#" onclick="showPage('login')">立即登录</a></p>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- 发布文章页面 -->
+            <div id="publish-page" class="page" style="display: none;">
+                <h1 class="page-title">发布新文章</h1>
+                
+                <form id="publish-form" class="publish-form">
+                    <div class="form-group">
+                        <label for="title">文章标题</label>
+                        <input type="text" id="title" class="form-control" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="excerpt">文章摘要</label>
+                        <textarea id="excerpt" class="form-control" required></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="content">文章内容</label>
+                        <textarea id="content" class="form-control" required></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="image">封面图片URL</label>
+                        <input type="url" id="image" class="form-control" placeholder="https://example.com/image.jpg">
+                    </div>
+                    
+                    <button type="submit" class="btn btn-block">发布文章</button>
+                </form>
+            </div>
+            
+            <!-- 我的文章页面 -->
+            <div id="my-articles-page" class="page" style="display: none;">
+                <h1 class="page-title">我的文章</h1>
+                
+                <div class="tabs">
+                    <div class="tab active" data-tab="all">全部文章</div>
+                    <div class="tab" data-tab="pending">待审核</div>
+                    <div class="tab" data-tab="approved">已发布</div>
+                    <div class="tab" data-tab="rejected">未通过</div>
+                </div>
+                
+                <div class="articles-grid" id="my-articles-container">
+                    <!-- 我的文章将通过JavaScript动态加载 -->
+                </div>
+                
+                <div class="empty-state" id="my-articles-empty" style="display: none;">
+                    <i>📝</i>
+                    <h3>暂无文章</h3>
+                    <p>您还没有发布任何文章，<a href="#" onclick="showPage('publish')">立即发布第一篇</a>！</p>
+                </div>
+            </div>
+            
+            <!-- 审核中心页面 -->
+            <div id="admin-page" class="page" style="display: none;">
+                <h1 class="page-title">文章审核中心</h1>
+                
+                <div class="tabs">
+                    <div class="tab active" data-tab="pending">待审核</div>
+                    <div class="tab" data-tab="approved">已通过</div>
+                    <div class="tab" data-tab="rejected">已拒绝</div>
+                </div>
+                
+                <div class="articles-grid" id="admin-articles-container">
+                    <!-- 待审核文章将通过JavaScript动态加载 -->
+                </div>
+                
+                <div class="empty-state" id="admin-empty" style="display: none;">
+                    <i>✅</i>
+                    <h3>暂无待审核文章</h3>
+                    <p>所有文章都已审核完毕！</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 页脚 -->
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <h3>文章发布平台</h3>
+                <p>分享知识，传播思想</p>
+                <div class="footer-links">
+                    <a href="#" onclick="showPage('home')">首页</a>
+                    <a href="#" onclick="showPage('publish')">发布文章</a>
+                    <a href="#" onclick="showPage('my-articles')">我的文章</a>
+                    <a href="#" onclick="showPage('admin')">审核中心</a>
+                </div>
+                <p class="copyright">© 2023 文章发布平台 版权所有</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- 删除确认模态框 -->
+    <div class="modal" id="delete-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">确认删除</h3>
+                <button class="close-modal" onclick="closeModal('delete-modal')">&times;</button>
+            </div>
+            <p>您确定要删除这篇文章吗？此操作不可撤销。</p>
+            <div class="modal-actions">
+                <button class="btn" onclick="closeModal('delete-modal')">取消</button>
+                <button class="btn btn-danger" id="confirm-delete">确认删除</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 审核操作模态框 -->
+    <div class="modal" id="review-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">审核文章</h3>
+                <button class="close-modal" onclick="closeModal('review-modal')">&times;</button>
+            </div>
+            <p>请选择审核操作：</p>
+            <div class="modal-actions">
+                <button class="btn btn-success" id="approve-article">通过审核</button>
+                <button class="btn btn-danger" id="reject-article">拒绝发布</button>
+                <button class="btn" onclick="closeModal('review-modal')">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 用户数据和文章数据
+        const sampleUsers = [
+            {
+                id: 1,
+                username: "admin",
+                email: "admin@example.com",
+                password: "admin123",
+                role: "admin", // admin, user
+                registerDate: "2023-01-01"
+            },
+            {
+                id: 2,
+                username: "user1",
+                email: "user1@example.com",
+                password: "user123",
+                role: "user",
+                registerDate: "2023-05-15"
+            }
+        ];
+
+        const sampleArticles = [
+            {
+                id: 1,
+                title: "如何写出优秀的科技文章",
+                excerpt: "本文介绍了撰写高质量科技文章的关键要素和技巧，帮助您更好地传达技术观点。",
+                content: "<p>在信息爆炸的时代，撰写优秀的科技文章变得越来越重要。一篇好的科技文章不仅需要准确的技术内容，还需要清晰的表达和吸引人的叙述。</p><p>首先，确定您的目标读者是谁。针对不同的读者群体，您需要使用不同的语言和技术深度。</p><p>其次，结构要清晰。一个好的科技文章应该有引人入胜的开头、逻辑严谨的主体和有力的结尾。</p><p>最后，不要忘记添加实例和代码片段。这可以帮助读者更好地理解您要表达的技术概念。</p>",
+                author: "user1",
+                authorId: 2,
+                publishDate: "2023-10-15",
+                image: "https://images.unsplash.com/photo-1555949963-ff9fe0c870eb?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80",
+                status: "approved" // pending, approved, rejected
+            },
+            {
+                id: 2,
+                title: "前端开发的最新趋势",
+                excerpt: "探索2023年前端开发领域的最新趋势和技术，包括WebAssembly、微前端等。",
+                content: "<p>前端开发领域日新月异，每年都有新的技术和趋势出现。了解这些趋势对于保持竞争力至关重要。</p><p>WebAssembly正在改变我们构建Web应用的方式，它允许在浏览器中运行高性能的编译语言代码。</p><p>微前端架构让大型前端应用更容易开发和维护，通过将应用拆分为更小的、独立的部分。</p><p>此外，Jamstack架构、服务器端渲染和渐进式Web应用等趋势也值得关注。</p>",
+                author: "user1",
+                authorId: 2,
+                publishDate: "2023-10-10",
+                image: "https://images.unsplash.com/photo-1555066931-4365d14bab8c?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80",
+                status: "approved"
+            },
+            {
+                id: 3,
+                title: "人工智能在医疗领域的应用",
+                excerpt: "深入探讨人工智能如何改变医疗行业，从诊断辅助到药物研发的各个方面。",
+                content: "<p>人工智能正在彻底改变医疗行业的方方面面。从辅助诊断到个性化治疗，AI技术为医疗带来了前所未有的可能性。</p><p>在医学影像分析方面，AI算法已经能够以接近甚至超过人类专家的准确度识别疾病迹象。</p><p>在药物研发领域，AI可以大大缩短新药开发周期，降低研发成本。</p><p>然而，AI在医疗领域的应用也面临着数据隐私、算法透明度和监管等挑战。</p>",
+                author: "admin",
+                authorId: 1,
+                publishDate: "2023-10-05",
+                image: "https://images.unsplash.com/photo-1559757148-5c350d0d3c56?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80",
+                status: "pending"
+            }
+        ];
+
+        // 从localStorage获取数据或使用示例数据
+        function getUsers() {
+            const storedUsers = localStorage.getItem('users');
+            if (storedUsers) {
+                return JSON.parse(storedUsers);
+            } else {
+                localStorage.setItem('users', JSON.stringify(sampleUsers));
+                return sampleUsers;
+            }
+        }
+
+        function getArticles() {
+            const storedArticles = localStorage.getItem('articles');
+            if (storedArticles) {
+                return JSON.parse(storedArticles);
+            } else {
+                localStorage.setItem('articles', JSON.stringify(sampleArticles));
+                return sampleArticles;
+            }
+        }
+
+        // 保存数据到localStorage
+        function saveUsers(users) {
+            localStorage.setItem('users', JSON.stringify(users));
+        }
+
+        function saveArticles(articles) {
+            localStorage.setItem('articles', JSON.stringify(articles));
+        }
+
+        // 获取当前登录用户
+        function getCurrentUser() {
+            return JSON.parse(localStorage.getItem('currentUser'));
+        }
+
+        function setCurrentUser(user) {
+            if (user) {
+                localStorage.setItem('currentUser', JSON.stringify(user));
+            } else {
+                localStorage.removeItem('currentUser');
+            }
+        }
+
+        // 检查用户是否登录
+        function isLoggedIn() {
+            return getCurrentUser() !== null;
+        }
+
+        // 检查用户是否为管理员
+        function isAdmin() {
+            const user = getCurrentUser();
+            return user && user.role === 'admin';
+        }
+
+        // 更新UI以反映登录状态
+        function updateUIForAuth() {
+            const user = getCurrentUser();
+            const userInfo = document.getElementById('user-info');
+            const loginLink = document.getElementById('login-link');
+            const publishLink = document.getElementById('publish-link');
+            const myArticlesLink = document.getElementById('my-articles-link');
+            const adminLink = document.getElementById('admin-link');
+            const welcomeSection = document.getElementById('welcome-section');
+            const articlesTitle = document.getElementById('articles-title');
+            const getStartedBtn = document.getElementById('get-started-btn');
+
+            if (user) {
+                // 用户已登录
+                userInfo.style.display = 'flex';
+                document.getElementById('username-display').textContent = user.username;
+                document.getElementById('user-avatar').textContent = user.username.charAt(0).toUpperCase();
+                loginLink.style.display = 'none';
+                publishLink.style.display = 'block';
+                myArticlesLink.style.display = 'block';
+                
+                if (isAdmin()) {
+                    adminLink.style.display = 'block';
+                } else {
+                    adminLink.style.display = 'none';
+                }
+                
+                // 更新首页显示
+                welcomeSection.style.display = 'none';
+                articlesTitle.style.display = 'block';
+                getStartedBtn.style.display = 'none';
+                
+                // 渲染文章列表
+                renderArticles();
+            } else {
+                // 用户未登录
+                userInfo.style.display = 'none';
+                loginLink.style.display = 'block';
+                publishLink.style.display = 'none';
+                myArticlesLink.style.display = 'none';
+                adminLink.style.display = 'none';
+                
+                // 更新首页显示
+                welcomeSection.style.display = 'block';
+                articlesTitle.style.display = 'none';
+                getStartedBtn.style.display = 'block';
+                
+                // 清空文章列表
+                document.getElementById('articles-container').innerHTML = '';
+            }
+        }
+
+        // 页面导航
+        function showPage(pageName) {
+            // 检查是否需要登录
+            if ((pageName === 'publish' || pageName === 'my-articles' || pageName === 'admin') && !isLoggedIn()) {
+                showPage('login');
+                alert('请先登录！');
+                return;
+            }
+            
+            // 检查管理员权限
+            if (pageName === 'admin' && !isAdmin()) {
+                showPage('home');
+                alert('您没有管理员权限！');
+                return;
+            }
+            
+            // 隐藏所有页面
+            document.querySelectorAll('.page').forEach(page => {
+                page.style.display = 'none';
+            });
+            
+            // 显示目标页面
+            document.getElementById(`${pageName}-page`).style.display = 'block';
+            
+            // 更新导航链接状态
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            document.querySelector(`.nav-link[onclick="showPage('${pageName}')"]`).classList.add('active');
+            
+            // 根据页面加载内容
+            if (pageName === 'home') {
+                if (isLoggedIn()) {
+                    renderArticles();
+                }
+            } else if (pageName === 'my-articles') {
+                renderMyArticles('all');
+                setupMyArticlesTabs();
+            } else if (pageName === 'admin') {
+                renderAdminArticles('pending');
+                setupAdminTabs();
+            }
+        }
+
+        // 渲染文章列表（首页）
+        function renderArticles() {
+            const articlesContainer = document.getElementById('articles-container');
+            const emptyState = document.getElementById('empty-state');
+            const articles = getArticles().filter(article => article.status === 'approved');
+            
+            if (articles.length === 0) {
+                articlesContainer.style.display = 'none';
+                emptyState.style.display = 'block';
+                return;
+            }
+            
+            articlesContainer.style.display = 'grid';
+            emptyState.style.display = 'none';
+            
+            articlesContainer.innerHTML = articles.map(article => `
+                <div class="article-card">
+                    <div class="article-image" style="background-image: url('${article.image}')"></div>
+                    <div class="article-content">
+                        <h3 class="article-title">${article.title}</h3>
+                        <p class="article-excerpt">${article.excerpt}</p>
+                        <div class="article-meta">
+                            <span>作者: ${article.author}</span>
+                            <span>${article.publishDate}</span>
+                        </div>
+                        <a href="#" class="btn btn-block" onclick="viewArticle(${article.id})">阅读全文</a>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 渲染我的文章
+        function renderMyArticles(filter = 'all') {
+            const container = document.getElementById('my-articles-container');
+            const emptyState = document.getElementById('my-articles-empty');
+            const currentUser = getCurrentUser();
+            let articles = getArticles().filter(article => article.authorId === currentUser.id);
+            
+            if (filter !== 'all') {
+                articles = articles.filter(article => article.status === filter);
+            }
+            
+            if (articles.length === 0) {
+                container.style.display = 'none';
+                emptyState.style.display = 'block';
+                return;
+            }
+            
+            container.style.display = 'grid';
+            emptyState.style.display = 'none';
+            
+            container.innerHTML = articles.map(article => `
+                <div class="article-card">
+                    <div class="article-image" style="background-image: url('${article.image}')"></div>
+                    <div class="article-content">
+                        <h3 class="article-title">${article.title}</h3>
+                        <p class="article-excerpt">${article.excerpt}</p>
+                        <div class="article-meta">
+                            <span>作者: ${article.author}</span>
+                            <span>${article.publishDate}</span>
+                        </div>
+                        <span class="status-badge status-${article.status}">
+                            ${article.status === 'pending' ? '待审核' : 
+                              article.status === 'approved' ? '已发布' : '未通过'}
+                        </span>
+                        <div class="article-actions">
+                            <a href="#" class="btn btn-sm" onclick="viewArticle(${article.id})">查看</a>
+                            <a href="#" class="btn btn-warning btn-sm" onclick="editArticle(${article.id})">编辑</a>
+                            <a href="#" class="btn btn-danger btn-sm" onclick="confirmDelete(${article.id})">删除</a>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 渲染管理员文章列表
+        function renderAdminArticles(filter = 'pending') {
+            const container = document.getElementById('admin-articles-container');
+            const emptyState = document.getElementById('admin-empty');
+            const articles = getArticles().filter(article => article.status === filter);
+            
+            if (articles.length === 0) {
+                container.style.display = 'none';
+                emptyState.style.display = 'block';
+                return;
+            }
+            
+            container.style.display = 'grid';
+            emptyState.style.display = 'none';
+            
+            container.innerHTML = articles.map(article => `
+                <div class="article-card">
+                    <div class="article-image" style="background-image: url('${article.image}')"></div>
+                    <div class="article-content">
+                        <h3 class="article-title">${article.title}</h3>
+                        <p class="article-excerpt">${article.excerpt}</p>
+                        <div class="article-meta">
+                            <span>作者: ${article.author}</span>
+                            <span>${article.publishDate}</span>
+                        </div>
+                        <span class="status-badge status-${article.status}">
+                            ${article.status === 'pending' ? '待审核' : 
+                              article.status === 'approved' ? '已发布' : '未通过'}
+                        </span>
+                        <div class="admin-actions">
+                            <a href="#" class="btn btn-sm" onclick="viewArticle(${article.id})">查看详情</a>
+                            ${filter === 'pending' ? `
+                                <a href="#" class="btn btn-success btn-sm" onclick="reviewArticle(${article.id}, 'approve')">通过</a>
+                                <a href="#" class="btn btn-danger btn-sm" onclick="reviewArticle(${article.id}, 'reject')">拒绝</a>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 设置我的文章页标签
+        function setupMyArticlesTabs() {
+            document.querySelectorAll('#my-articles-page .tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    // 更新标签状态
+                    document.querySelectorAll('#my-articles-page .tab').forEach(t => {
+                        t.classList.remove('active');
+                    });
+                    this.classList.add('active');
+                    
+                    // 渲染对应文章
+                    renderMyArticles(this.getAttribute('data-tab'));
+                });
+            });
+        }
+
+        // 设置管理员页标签
+        function setupAdminTabs() {
+            document.querySelectorAll('#admin-page .tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    // 更新标签状态
+                    document.querySelectorAll('#admin-page .tab').forEach(t => {
+                        t.classList.remove('active');
+                    });
+                    this.classList.add('active');
+                    
+                    // 渲染对应文章
+                    renderAdminArticles(this.getAttribute('data-tab'));
+                });
+            });
+        }
+
+        // 查看文章详情
+        function viewArticle(id) {
+            const articles = getArticles();
+            const article = articles.find(a => a.id === id);
+            
+            if (!article) {
+                alert('文章未找到！');
+                return;
+            }
+            
+            // 创建文章详情页HTML
+            const articleHTML = `
+                <div class="article-detail">
+                    <div class="article-header">
+                        <h1 class="article-detail-title">${article.title}</h1>
+                        <div class="article-detail-meta">
+                            <span>作者: ${article.author}</span>
+                            <span>发布日期: ${article.publishDate}</span>
+                            <span class="status-badge status-${article.status}">
+                                ${article.status === 'pending' ? '待审核' : 
+                                  article.status === 'approved' ? '已发布' : '未通过'}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="article-body">
+                        ${article.content}
+                    </div>
+                    <div style="margin-top: 20px;">
+                        <a href="#" class="btn" onclick="showPage('home')">返回首页</a>
+                    </div>
+                </div>
+            `;
+            
+            // 临时替换首页内容为文章详情
+            const homePage = document.getElementById('home-page');
+            const originalContent = homePage.innerHTML;
+            homePage.innerHTML = articleHTML;
+            
+            // 显示首页（现在是文章详情）
+            showPage('home');
+            
+            // 添加返回按钮的事件监听
+            setTimeout(() => {
+                document.querySelector('#home-page .btn').addEventListener('click', function(e) {
+                    e.preventDefault();
+                    homePage.innerHTML = originalContent;
+                    showPage('home');
+                });
+            }, 100);
+        }
+
+        // 用户注册
+        function setupRegisterForm() {
+            const form = document.getElementById('register-form');
+            
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const username = document.getElementById('register-username').value;
+                const email = document.getElementById('register-email').value;
+                const password = document.getElementById('register-password').value;
+                const passwordConfirm = document.getElementById('register-password-confirm').value;
+                
+                if (!username || !email || !password) {
+                    alert('请填写所有必填字段！');
+                    return;
+                }
+                
+                if (password !== passwordConfirm) {
+                    alert('两次输入的密码不一致！');
+                    return;
+                }
+                
+                if (password.length < 6) {
+                    alert('密码长度至少为6位！');
+                    return;
+                }
+                
+                const users = getUsers();
+                
+                // 检查用户名是否已存在
+                if (users.find(user => user.username === username)) {
+                    alert('用户名已存在，请选择其他用户名！');
+                    return;
+                }
+                
+                // 检查邮箱是否已存在
+                if (users.find(user => user.email === email)) {
+                    alert('邮箱已被注册，请使用其他邮箱！');
+                    return;
+                }
+                
+                // 创建新用户
+                const newUser = {
+                    id: users.length > 0 ? Math.max(...users.map(u => u.id)) + 1 : 1,
+                    username,
+                    email,
+                    password, // 实际应用中应对密码进行加密
+                    role: "user",
+                    registerDate: new Date().toISOString().split('T')[0]
+                };
+                
+                users.push(newUser);
+                saveUsers(users);
+                
+                // 自动登录
+                setCurrentUser(newUser);
+                updateUIForAuth();
+                
+                alert('注册成功！');
+                showPage('home');
+            });
+        }
+
+        // 用户登录
+        function setupLoginForm() {
+            const form = document.getElementById('login-form');
+            
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const username = document.getElementById('login-username').value;
+                const password = document.getElementById('login-password').value;
+                
+                if (!username || !password) {
+                    alert('请填写用户名和密码！');
+                    return;
+                }
+                
+                const users = getUsers();
+                const user = users.find(u => u.username === username && u.password === password);
+                
+                if (!user) {
+                    alert('用户名或密码错误！');
+                    return;
+                }
+                
+                // 登录成功
+                setCurrentUser(user);
+                updateUIForAuth();
+                
+                alert('登录成功！');
+                showPage('home');
+            });
+        }
+
+        // 用户退出
+        function logout() {
+            setCurrentUser(null);
+            updateUIForAuth();
+            showPage('home');
+            alert('已成功退出！');
+        }
+
+        // 发布文章
+        function setupPublishForm() {
+            const form = document.getElementById('publish-form');
+            
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const currentUser = getCurrentUser();
+                if (!currentUser) {
+                    alert('请先登录！');
+                    showPage('login');
+                    return;
+                }
+                
+                const title = document.getElementById('title').value;
+                const excerpt = document.getElementById('excerpt').value;
+                const content = document.getElementById('content').value;
+                const image = document.getElementById('image').value || 'https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80';
+                
+                if (!title || !content) {
+                    alert('标题和内容不能为空！');
+                    return;
+                }
+                
+                const articles = getArticles();
+                const newArticle = {
+                    id: articles.length > 0 ? Math.max(...articles.map(a => a.id)) + 1 : 1,
+                    title,
+                    excerpt,
+                    content: content.replace(/\n/g, '<br>'),
+                    author: currentUser.username,
+                    authorId: currentUser.id,
+                    publishDate: new Date().toISOString().split('T')[0],
+                    image,
+                    status: "pending" // 新文章默认待审核
+                };
+                
+                articles.unshift(newArticle);
+                saveArticles(articles);
+                
+                alert('文章发布成功，等待审核！');
+                form.reset();
+                showPage('my-articles');
+            });
+        }
+
+        // 编辑文章
+        function editArticle(id) {
+            const articles = getArticles();
+            const article = articles.find(a => a.id === id);
+            const currentUser = getCurrentUser();
+            
+            if (!article) {
+                alert('文章未找到！');
+                return;
+            }
+            
+            // 检查权限
+            if (article.authorId !== currentUser.id && currentUser.role !== 'admin') {
+                alert('您没有权限编辑此文章！');
+                return;
+            }
+            
+            // 填充表单
+            document.getElementById('title').value = article.title;
+            document.getElementById('excerpt').value = article.excerpt;
+            document.getElementById('content').value = article.content.replace(/<br>/g, '\n');
+            document.getElementById('image').value = article.image;
+            
+            // 修改发布按钮文本
+            const submitBtn = document.querySelector('#publish-form button');
+            submitBtn.textContent = '更新文章';
+            
+            // 临时修改表单提交事件
+            const form = document.getElementById('publish-form');
+            const originalSubmit = form.onsubmit;
+            
+            form.onsubmit = function(e) {
+                e.preventDefault();
+                
+                const title = document.getElementById('title').value;
+                const excerpt = document.getElementById('excerpt').value;
+                const content = document.getElementById('content').value;
+                const image = document.getElementById('image').value || 'https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80';
+                
+                if (!title || !content) {
+                    alert('标题和内容不能为空！');
+                    return;
+                }
+                
+                // 更新文章
+                const articleIndex = articles.findIndex(a => a.id === id);
+                if (articleIndex !== -1) {
+                    articles[articleIndex] = {
+                        ...articles[articleIndex],
+                        title,
+                        excerpt,
+                        content: content.replace(/\n/g, '<br>'),
+                        image,
+                        status: "pending" // 编辑后重新进入审核状态
+                    };
+                    
+                    saveArticles(articles);
+                    alert('文章更新成功，等待重新审核！');
+                    
+                    // 恢复原始表单行为
+                    form.onsubmit = originalSubmit;
+                    submitBtn.textContent = '发布文章';
+                    form.reset();
+                    
+                    showPage('my-articles');
+                }
+            };
+            
+            showPage('publish');
+        }
+
+        // 确认删除文章
+        function confirmDelete(id) {
+            const modal = document.getElementById('delete-modal');
+            modal.style.display = 'flex';
+            
+            const confirmBtn = document.getElementById('confirm-delete');
+            confirmBtn.onclick = function() {
+                deleteArticle(id);
+                closeModal('delete-modal');
+            };
+        }
+
+        // 删除文章
+        function deleteArticle(id) {
+            const articles = getArticles();
+            const article = articles.find(a => a.id === id);
+            const currentUser = getCurrentUser();
+            
+            // 检查权限
+            if (article.authorId !== currentUser.id && currentUser.role !== 'admin') {
+                alert('您没有权限删除此文章！');
+                return;
+            }
+            
+            const updatedArticles = articles.filter(article => article.id !== id);
+            saveArticles(updatedArticles);
+            
+            alert('文章已删除！');
+            
+            // 刷新当前页面
+            if (document.getElementById('my-articles-page').style.display !== 'none') {
+                renderMyArticles('all');
+            } else if (document.getElementById('admin-page').style.display !== 'none') {
+                renderAdminArticles('pending');
+            }
+        }
+
+        // 审核文章
+        function reviewArticle(id, action) {
+            const articles = getArticles();
+            const articleIndex = articles.findIndex(a => a.id === id);
+            
+            if (articleIndex !== -1) {
+                if (action === 'approve') {
+                    articles[articleIndex].status = 'approved';
+                    alert('文章已通过审核！');
+                } else if (action === 'reject') {
+                    articles[articleIndex].status = 'rejected';
+                    alert('文章已拒绝发布！');
+                }
+                
+                saveArticles(articles);
+                renderAdminArticles('pending');
+            }
+        }
+
+        // 关闭模态框
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化表单
+            setupRegisterForm();
+            setupLoginForm();
+            setupPublishForm();
+            
+            // 更新UI以反映登录状态
+            updateUIForAuth();
+            
+            // 如果已登录，渲染首页文章
+            if (isLoggedIn()) {
+                renderArticles();
+            }
+        });
+    </script>
+</body>
+</html>
